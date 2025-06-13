@@ -8,34 +8,31 @@ import { RealTimeMetrics } from "@/components/ml/real-time-metrics"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Download, Share2 } from "lucide-react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { TimeSeriesChart } from "@/components/ml/visualizations/time-series-chart"
-import { ClusterChart } from "@/components/ml/visualizations/cluster-chart"
-import { TreatmentGapChart } from "@/components/ml/visualizations/treatment-gap-chart"
 import {
-  ResponsiveContainer,
-  LineChart,
+  Area,
+  Bar,
+  BarChart,
   CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Scatter,
+  ScatterChart,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  Legend,
-  Area,
-  Line,
-  ScatterChart,
-  Scatter,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
   RadarChart,
+  Radar,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
-  Radar,
   Treemap,
 } from "recharts"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function MLAnalysisPage() {
   // Estados para controle do fluxo de ML
@@ -50,27 +47,9 @@ export default function MLAnalysisPage() {
   const [processingLogs, setProcessingLogs] = useState<string[]>([])
   const [metricsData, setMetricsData] = useState<any>({})
   const [results, setResults] = useState<any>(null)
+
+  // Adicionar estado para controlar o cancelamento
   const [isCancelled, setIsCancelled] = useState(false)
-  const [dataFilesAvailable, setDataFilesAvailable] = useState(false)
-
-  // Verifica se os arquivos de dados estão disponíveis
-  useEffect(() => {
-    async function checkDataFiles() {
-      try {
-        const response = await fetch("/api/data?file=index.txt")
-        setDataFilesAvailable(response.ok)
-
-        if (!response.ok) {
-          console.warn("Arquivos de dados não encontrados. Execute o script de download primeiro.")
-        }
-      } catch (error) {
-        console.error("Erro ao verificar arquivos de dados:", error)
-        setDataFilesAvailable(false)
-      }
-    }
-
-    checkDataFiles()
-  }, [])
 
   // Timer para tempo decorrido
   useEffect(() => {
@@ -281,11 +260,15 @@ export default function MLAnalysisPage() {
   const renderVisualization = () => {
     switch (selectedModelType) {
       case "timeSeries":
-        return <TimeSeriesChart />
+        return renderTimeSeriesVisualization()
       case "clustering":
-        return <ClusterChart />
+        return renderClusteringVisualization()
+      case "correlation":
+        return renderCorrelationVisualization()
+      case "regression":
+        return renderRegressionVisualization()
       case "anomaly":
-        return <TreatmentGapChart />
+        return renderAnomalyVisualization()
       default:
         return (
           <div className="h-64 flex items-center justify-center">
