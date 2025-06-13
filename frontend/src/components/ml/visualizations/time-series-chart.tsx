@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -15,7 +15,6 @@ import {
   Area,
   AreaChart,
 } from "recharts"
-import { loadCSVData, getTimeSeriesData, type MentalIllnessPrevalence } from "@/lib/data-loader"
 
 interface TimeSeriesPoint {
   date: string
@@ -34,6 +33,7 @@ interface TimeSeriesChartProps {
   showConfidenceInterval?: boolean
   forecastPeriod?: number
   intervalWidth?: number
+  data?: TimeSeriesPoint[]
 }
 
 export function TimeSeriesChart({
@@ -45,92 +45,10 @@ export function TimeSeriesChart({
   showConfidenceInterval = true,
   forecastPeriod = 5,
   intervalWidth = 0.8,
+  data = [],
 }: TimeSeriesChartProps) {
-  const [data, setData] = useState<TimeSeriesPoint[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(data.length === 0)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function loadTimeSeriesData() {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        // Carrega os dados de prevalência
-        const prevalenceData = await loadCSVData<MentalIllnessPrevalence>("mental-illnesses-prevalence.csv")
-
-        if (prevalenceData.length === 0) {
-          throw new Error("Não foi possível carregar os dados de prevalência")
-        }
-
-        // Filtra dados inválidos
-        const validData = prevalenceData.filter(
-          (item) => item && typeof item.Entity === "string" && typeof item.Year === "number" && !isNaN(item.Year),
-        )
-
-        if (validData.length === 0) {
-          throw new Error("Nenhum dado válido encontrado após filtragem")
-        }
-
-        console.log(`Dados válidos para visualização: ${validData.length} registros`)
-
-        // Obtém os dados de séries temporais
-        const timeSeriesData = getTimeSeriesData(validData, disorder, region)
-
-        if (timeSeriesData.length === 0) {
-          console.warn(`Nenhum dado de série temporal encontrado para ${disorder} na região ${region}`)
-        }
-
-        // Adiciona previsões para os próximos anos
-        const extendedData = [...timeSeriesData]
-
-        if (timeSeriesData.length > 0) {
-          // Obtém os últimos anos para calcular a tendência
-          const lastYears = timeSeriesData.slice(-Math.min(5, timeSeriesData.length))
-          const values = lastYears
-            .map((d) => d.actual)
-            .filter((val): val is number => typeof val === "number" && !isNaN(val))
-
-          // Calcula a tendência linear simples
-          let trend = 0
-          if (values.length > 1) {
-            let sum = 0
-            for (let i = 1; i < values.length; i++) {
-              sum += values[i] - values[i - 1]
-            }
-            trend = sum / (values.length - 1)
-          }
-
-          // Último ano disponível
-          const lastYear = Number.parseInt(timeSeriesData[timeSeriesData.length - 1].date)
-          const lastValue = timeSeriesData[timeSeriesData.length - 1].actual || 0
-
-          // Gera previsões
-          for (let i = 1; i <= forecastPeriod; i++) {
-            const year = lastYear + i
-            const predicted = lastValue + trend * i
-            const halfInterval = (predicted * (1 - intervalWidth)) / 2
-
-            extendedData.push({
-              date: year.toString(),
-              predicted,
-              lower: predicted - halfInterval,
-              upper: predicted + halfInterval,
-            })
-          }
-        }
-
-        setData(extendedData)
-      } catch (err) {
-        console.error("Erro ao carregar dados de séries temporais:", err)
-        setError("Erro ao carregar dados. Por favor, tente novamente.")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadTimeSeriesData()
-  }, [disorder, region, forecastPeriod, intervalWidth])
 
   // Função para formatar valores no tooltip
   const formatTooltipValue = (value: number) => {

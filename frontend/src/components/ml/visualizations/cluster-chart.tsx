@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -16,8 +16,6 @@ import {
   PieChart,
   Pie,
 } from "recharts"
-import { loadCSVData, getClusteringData, type MentalIllnessPrevalence } from "@/lib/data-loader"
-import * as kmeans from "ml-kmeans"
 
 interface ClusterPoint {
   id: string
@@ -25,6 +23,13 @@ interface ClusterPoint {
   x: number
   y: number
   cluster: number
+}
+
+interface ClusterStat {
+  cluster: number
+  count: number
+  percentage: number
+  [key: string]: number | string
 }
 
 interface ClusterChartProps {
@@ -35,57 +40,23 @@ interface ClusterChartProps {
   xLabel: string
   yLabel: string
   clusterCount: number
+  data?: ClusterPoint[]
+  clusterStats?: ClusterStat[]
 }
 
-export function ClusterChart({ title, description, features, year, xLabel, yLabel, clusterCount }: ClusterChartProps) {
-  const [data, setData] = useState<ClusterPoint[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+export function ClusterChart({
+  title,
+  description,
+  features,
+  year,
+  xLabel,
+  yLabel,
+  clusterCount,
+  data = [],
+  clusterStats = [],
+}: ClusterChartProps) {
+  const [isLoading, setIsLoading] = useState(data.length === 0)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function loadClusterData() {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        // Carrega os dados de prevalência
-        const prevalenceData = await loadCSVData<MentalIllnessPrevalence>("mental-illnesses-prevalence.csv")
-
-        if (prevalenceData.length === 0) {
-          throw new Error("Não foi possível carregar os dados de prevalência")
-        }
-
-        // Obtém os dados para clustering
-        const clusteringData = getClusteringData(prevalenceData, features, year)
-
-        if (clusteringData.length === 0) {
-          throw new Error("Dados insuficientes para clustering")
-        }
-
-        // Prepara os dados para o algoritmo k-means
-        const points = clusteringData.map((point) => [point.x, point.y])
-
-        // Executa o algoritmo k-means
-        const k = Math.min(clusterCount, points.length)
-        const result = kmeans.default(points, k, { initialization: "kmeans++" })
-
-        // Adiciona informações de cluster aos dados
-        const clusteredData = clusteringData.map((point, index) => ({
-          ...point,
-          cluster: result.clusters[index],
-        }))
-
-        setData(clusteredData)
-      } catch (err) {
-        console.error("Erro ao carregar dados de clustering:", err)
-        setError("Erro ao carregar dados. Por favor, tente novamente.")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadClusterData()
-  }, [features, year, clusterCount])
 
   // Cores para diferentes clusters
   const clusterColors = [
@@ -102,9 +73,9 @@ export function ClusterChart({ title, description, features, year, xLabel, yLabe
   ]
 
   // Dados para o gráfico de distribuição
-  const distributionData = Array.from({ length: clusterCount }, (_, i) => ({
-    name: `Grupo ${i + 1}`,
-    value: data.filter((d) => d.cluster === i).length,
+  const distributionData = clusterStats.map((stat) => ({
+    name: `Grupo ${stat.cluster + 1}`,
+    value: stat.count,
   }))
 
   return (
