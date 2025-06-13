@@ -48,6 +48,48 @@ const csvFiles: CsvFileInfo[] = [
   },
 ]
 
+// Melhore a função cleanCsvData para lidar melhor com aspas mal formadas
+
+// Função para limpar dados CSV
+function cleanCsvData(data: string): string {
+  console.log("Limpando dados CSV...")
+
+  // Normaliza quebras de linha
+  let cleanedData = data.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+
+  // Tenta corrigir aspas mal formadas
+  cleanedData = cleanedData
+    // Substitui aspas duplas consecutivas por uma única aspa
+    .replace(/""/g, '"DOUBLE_QUOTE"')
+    // Escapa aspas dentro de campos
+    .replace(/(?<=[^"])"(?=[^"])/g, '""')
+    // Restaura aspas duplas
+    .replace(/"DOUBLE_QUOTE"/g, '""')
+
+  // Divide em linhas para processamento linha a linha
+  const lines = cleanedData.split("\n")
+  const processedLines = []
+
+  // Processa cada linha
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim()
+    if (!line) continue
+
+    // Conta aspas para verificar se estão balanceadas
+    const quoteCount = (line.match(/"/g) || []).length
+
+    // Se o número de aspas for ímpar, adiciona uma aspa no final
+    if (quoteCount % 2 !== 0) {
+      line += '"'
+    }
+
+    processedLines.push(line)
+  }
+
+  // Junta as linhas novamente
+  return processedLines.join("\n")
+}
+
 // Função para baixar um arquivo
 async function downloadFile(fileInfo: CsvFileInfo): Promise<void> {
   try {
@@ -58,7 +100,10 @@ async function downloadFile(fileInfo: CsvFileInfo): Promise<void> {
       throw new Error(`Erro ao baixar ${fileInfo.filename}: ${response.statusText}`)
     }
 
-    const data = await response.text()
+    let data = await response.text()
+
+    // Limpa os dados CSV
+    data = cleanCsvData(data)
 
     // Cria o diretório se não existir
     const dataDir = path.join(process.cwd(), "public", "data")

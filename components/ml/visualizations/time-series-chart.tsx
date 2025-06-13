@@ -63,16 +63,33 @@ export function TimeSeriesChart({
           throw new Error("Não foi possível carregar os dados de prevalência")
         }
 
+        // Filtra dados inválidos
+        const validData = prevalenceData.filter(
+          (item) => item && typeof item.Entity === "string" && typeof item.Year === "number" && !isNaN(item.Year),
+        )
+
+        if (validData.length === 0) {
+          throw new Error("Nenhum dado válido encontrado após filtragem")
+        }
+
+        console.log(`Dados válidos para visualização: ${validData.length} registros`)
+
         // Obtém os dados de séries temporais
-        const timeSeriesData = getTimeSeriesData(prevalenceData, disorder, region)
+        const timeSeriesData = getTimeSeriesData(validData, disorder, region)
+
+        if (timeSeriesData.length === 0) {
+          console.warn(`Nenhum dado de série temporal encontrado para ${disorder} na região ${region}`)
+        }
 
         // Adiciona previsões para os próximos anos
         const extendedData = [...timeSeriesData]
 
         if (timeSeriesData.length > 0) {
           // Obtém os últimos anos para calcular a tendência
-          const lastYears = timeSeriesData.slice(-5)
-          const values = lastYears.map((d) => d.actual)
+          const lastYears = timeSeriesData.slice(-Math.min(5, timeSeriesData.length))
+          const values = lastYears
+            .map((d) => d.actual)
+            .filter((val): val is number => typeof val === "number" && !isNaN(val))
 
           // Calcula a tendência linear simples
           let trend = 0
